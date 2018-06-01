@@ -1,8 +1,7 @@
 ﻿using System; 
 using System.Net;
 using System.IO;
-using HtmlKit;
-using System.Text;
+using HtmlAgilityPack; 
 
 
 namespace Actiontec.GT784WN
@@ -15,7 +14,7 @@ namespace Actiontec.GT784WN
         private string _routerUsername;
         private string _routerPassword;
 
-        private string _uriTemplate = "http://{0}{1}"; 
+        private string _uriTemplate = "http://{0}{1}";
 
         private CookieContainer _cookieContainer = new CookieContainer();
 
@@ -25,7 +24,17 @@ namespace Actiontec.GT784WN
         {
             this._routerAddress = address;
             this._routerUsername = username;
-            this._routerPassword = password; 
+            this._routerPassword = password;
+        }
+
+        public WANStatus GetWANStatus()
+        {
+            MemoryStream ms = GetRequestData(String.Format(_uriTemplate, _routerAddress, Constants.WANStatusUri));
+            HtmlDocument dom = new HtmlDocument();
+            dom.Load(ms);
+            ms.Seek(0, SeekOrigin.Begin);
+            string scriptData = GetScriptData(ms);
+            return new WANStatus(dom, scriptData); 
         }
 
         /// <summary>
@@ -34,7 +43,9 @@ namespace Actiontec.GT784WN
         /// <returns>A ModemUtilization data structure containing requested data</returns>
         public ModemUtilization GetModemUtilization()
         {
-           return new ModemUtilization(RequestScriptData( String.Format(_uriTemplate, _routerAddress, Constants.ModemUtilizationUri))); 
+            MemoryStream ms = GetRequestData(String.Format(_uriTemplate, _routerAddress, Constants.ModemUtilizationUri));
+            return new ModemUtilization(GetScriptData(ms));
+           
         }
 
         /// <summary>
@@ -43,32 +54,44 @@ namespace Actiontec.GT784WN
         /// <returns>A ModemStatus data structure containing requested data</returns>
         public ModemStatus GetStatus()
         {
-            return new ModemStatus(RequestScriptData(String.Format(_uriTemplate, _routerAddress, Constants.ModemStatusUri))); 
+            //return new ModemStatus(RequestScriptData(String.Format(_uriTemplate, _routerAddress, Constants.ModemStatusUri)));
+            MemoryStream ms = GetRequestData(String.Format(_uriTemplate, _routerAddress, Constants.ModemStatusUri));
+            return new ModemStatus(GetScriptData(ms)); 
         }
 
         /// <summary>
-        /// Constructs a request to get the javascript portion of the response body from a URI
+        /// Gets content from a URI
         /// </summary>
-        /// <param name="requestUri">Request URI</param>
-        /// <param name="method">HTTP method to use, defaults to "GET"</param>
-        /// <returns>String containing content of all <SCRIPT> tags in HTTP response body</returns>
-        private string RequestScriptData(string requestUri, string method="GET")
+        /// <param name="requestUri"></param>
+        /// <param name="requestMethod"></param>
+        /// <returns></returns>
+        private MemoryStream GetRequestData(string requestUri, string requestMethod = "GET")
         {
             HttpWebRequest req = GetHttpClient(requestUri);
-            req.Method = method; 
+            MemoryStream ret = new MemoryStream(); 
+            req.Method = requestMethod;
             HttpWebResponse response = (HttpWebResponse)req.GetResponse();
-            string scriptData = String.Empty;
+            response.GetResponseStream().CopyTo(ret);
+            ret.Seek(0, SeekOrigin.Begin);
+            return ret; 
+        }
 
-            
-            using (StreamReader sr = new StreamReader(response.GetResponseStream()))
+        /// <summary>
+        /// Parses javascript out of stream content 
+        /// </summary>
+        /// <param name="contentStream"></param>
+        /// <returns></returns>
+        private string GetScriptData(Stream contentStream)
+        {
+            string scriptData = String.Empty;
+            using (StreamReader sr = new StreamReader(contentStream))
             {
                 scriptData = Utilities.GetScriptData(sr);
                 sr.Close();
             }
-            return scriptData; 
-
+            return scriptData;
         }
-
+        
         /// <summary>
         /// Gets a generic HttpWebRequest for use in the application 
         /// </summary>

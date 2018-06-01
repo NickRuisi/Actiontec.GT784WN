@@ -7,6 +7,7 @@ using Noesis.Javascript;
 using HtmlKit;
 using System.IO; 
 
+
 namespace Actiontec.GT784WN
 {
     public class Utilities
@@ -16,7 +17,7 @@ namespace Actiontec.GT784WN
             StringBuilder sb = new StringBuilder();
             var tokenizer = new HtmlTokenizer(streamReader);
             HtmlToken token;
-            
+ 
             while (tokenizer.ReadNextToken(out token))
             {
                 switch (token.Kind)
